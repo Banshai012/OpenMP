@@ -12,11 +12,11 @@ void chol_par_loop_simple(matrix_t A){
   for(k=0; k<A.NB; k++){
     /* reduce the diagonal block */
     potrf(A.blocks[k][k]);
-    
     for(i=k+1; i<A.NB; i++){
 
       /* compute the A[i][k] sub-diagonal block */
       trsm(A.blocks[k][k], A.blocks[i][k]);
+      #pragma omp parallel for
       for(j=k+1; j<=i; j++){
 
         /* update the A[i][j] block in the trailing submatrix */
