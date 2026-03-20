@@ -8,23 +8,28 @@ void chol_par_tasks(matrix_t A){
 
   int i, j, k;
 
-#pragma omp parallel
-  for(k=0; k<A.NB; k++){
-    /* reduce the diagonal block */
-    #pragma omp task depend(out:A.blocks[k][k])
-    potrf(A.blocks[k][k]);
-    for(i=k+1; i<A.NB; i++){
-      
-      /* compute the A[i][k] sub-diagonal block */
-      #pragma omp task depend(in:A.blocks[k][k]) depend(out:A.blocks[i][k])
-      trsm(A.blocks[k][k], A.blocks[i][k]);
-      for(j=k+1; j<=i; j++){
-        /* update the A[i][j] block in the trailing submatrix */
-        #pragma omp task depend(in:A.blocks[i][j-1], A.blocks[i-1][j-1]) depend(out:A.blocks[i][j])
-        gemm(A.blocks[i][k], A.blocks[j][k], A.blocks[i][j]);
-      }    
+#pragma omp parallel private(i,j,k)
+{
+  #pragma omp master
+  {
+    for(k=0; k<A.NB; k++){
+      /* reduce the diagonal block */
+      #pragma omp task depend(out:A.blocks[k][k])
+      potrf(A.blocks[k][k]);
+      for(i=k+1; i<A.NB; i++){
+        
+        /* compute the A[i][k] sub-diagonal block */
+        #pragma omp task depend(in:A.blocks[k][k], A.blocks[i][k]) depend(out:A.blocks[i][k])
+        trsm(A.blocks[k][k], A.blocks[i][k]);
+        for(j=k+1; j<=i; j++){
+          /* update the A[i][j] block in the trailing submatrix */
+          #pragma omp task depend(in:A.blocks[i][k], A.blocks[j][k], A.blocks[i][j]) depend(out:A.blocks[i][j])
+          gemm(A.blocks[i][k], A.blocks[j][k], A.blocks[i][j]);
+        }    
+      }
     }
   }
+}
 
   return;
 
